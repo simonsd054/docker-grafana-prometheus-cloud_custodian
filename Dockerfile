@@ -13,6 +13,8 @@ WORKDIR /home
 #to COPY the remote file at working directory in container
 COPY main.py ./
 COPY run.sh ./
+COPY cloud_custodian_policies ./
+COPY env.sh ./
 # Now the structure looks like this '/usr/app/src/test.py'
 
 

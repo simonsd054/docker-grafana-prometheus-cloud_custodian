@@ -1,0 +1,3 @@
+policies:
+  - name: iam-roles-in-use
+    resource: iam-role
