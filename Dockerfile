@@ -15,6 +15,9 @@ COPY main.py ./
 COPY run.sh ./
 COPY cloud_custodian_policies ./
 COPY env.sh ./
+COPY roles.py ./
+COPY roles_service_mapping.py ./
+COPY roles_service.py ./
 # Now the structure looks like this '/usr/app/src/test.py'
 
 
