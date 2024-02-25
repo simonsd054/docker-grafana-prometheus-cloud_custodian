@@ -135,6 +135,9 @@ def lambda_handler(event):
             continue
         else:
             service_details = roles[i]["Service Details"]
+            print("service details")
+            print(service_details)
+            print("service details done")
 
             if len(service_details) == 0:
                 response = cost_of_instance(event, client, "None", start_date, end_date)
@@ -161,75 +164,115 @@ def lambda_handler(event):
 
                 # check if detail is a dictionary
                 if isinstance(detail, dict):
-                    # extract the "Instance_Region" and "Instance" fields
-                    instance_region = detail["Instance_Region"]
-                    instance = detail["Instance"]
-                    ec2 = "ec2:instance/" + instance
-                    response = cost_of_instance(
-                        event, client, instance, start_date, end_date
-                    )
+                    if detail["Service"] == "ec2":
+                        # extract the "Instance_Region" and "Instance" fields
+                        instance_region = detail["Instance_Region"]
+                        instance = detail["Instance"]
+                        ec2 = "ec2:instance/" + instance
+                        response = cost_of_instance(
+                            event, client, instance, start_date, end_date
+                        )
 
-                    ec2_resource = boto3.resource("ec2", region_name=instance_region)
-                    state = ec2_resource.Instance(instance).state["Name"]
+                        ec2_resource = boto3.resource("ec2", region_name=instance_region)
+                        state = ec2_resource.Instance(instance).state["Name"]
 
-                    if state != "terminated":
-                        if state == "running":
+                        if state != "terminated":
+                            if state == "running":
 
-                            cumulative = 0.0
-                            for j in range(len(response["ResultsByTime"])):
-                                time_Data = response["ResultsByTime"][j]["TimePeriod"][
-                                    "End"
-                                ]
-                                new_time = time_Data.replace("00:00:00", "12:02:02")
-                                cumulative = cumulative + float(
-                                    response["ResultsByTime"][j]["Total"][
-                                        "UnblendedCost"
-                                    ]["Amount"]
-                                )
+                                cumulative = 0.0
+                                for j in range(len(response["ResultsByTime"])):
+                                    time_Data = response["ResultsByTime"][j]["TimePeriod"][
+                                        "End"
+                                    ]
+                                    new_time = time_Data.replace("00:00:00", "12:02:02")
+                                    cumulative = cumulative + float(
+                                        response["ResultsByTime"][j]["Total"][
+                                            "UnblendedCost"
+                                        ]["Amount"]
+                                    )
 
-                                iam_service_gauge.labels(
-                                    (
-                                        datetime.strptime(
-                                            new_time, "%Y-%m-%dT%H:%M:%SZ"
-                                        )
-                                    ).strftime("%Y-%m-%d %H:%M:%S"),
-                                    role,
-                                    "unknown region name",
-                                    # f"{role_region} ({region_names.get(role_region, 'unknown region name')})",
-                                    account_id,
-                                    ec2,
-                                    cumulative,
-                                    "Stop",
-                                ).set(cumulative)
-                        elif state == "stopped":
-                            cumulative = 0.0
-                            for j in range(len(response["ResultsByTime"])):
-                                time_Data = response["ResultsByTime"][j]["TimePeriod"][
-                                    "End"
-                                ]
-                                new_time = time_Data.replace("00:00:00", "12:02:02")
-                                cumulative = cumulative + float(
-                                    response["ResultsByTime"][j]["Total"][
-                                        "UnblendedCost"
-                                    ]["Amount"]
-                                )
+                                    iam_service_gauge.labels(
+                                        (
+                                            datetime.strptime(
+                                                new_time, "%Y-%m-%dT%H:%M:%SZ"
+                                            )
+                                        ).strftime("%Y-%m-%d %H:%M:%S"),
+                                        role,
+                                        "unknown region name",
+                                        # f"{role_region} ({region_names.get(role_region, 'unknown region name')})",
+                                        account_id,
+                                        ec2,
+                                        cumulative,
+                                        "Stop",
+                                    ).set(cumulative)
+                            elif state == "stopped":
+                                cumulative = 0.0
+                                for j in range(len(response["ResultsByTime"])):
+                                    time_Data = response["ResultsByTime"][j]["TimePeriod"][
+                                        "End"
+                                    ]
+                                    new_time = time_Data.replace("00:00:00", "12:02:02")
+                                    cumulative = cumulative + float(
+                                        response["ResultsByTime"][j]["Total"][
+                                            "UnblendedCost"
+                                        ]["Amount"]
+                                    )
 
-                                iam_service_gauge.labels(
-                                    (
-                                        datetime.strptime(
-                                            new_time, "%Y-%m-%dT%H:%M:%SZ"
-                                        )
-                                    ).strftime("%Y-%m-%d %H:%M:%S"),
-                                    role,
-                                    "Unkown region name",
-                                    # f"{role_region} ({region_names.get(role_region, 'unknown region name')})",
-                                    account_id,
-                                    ec2,
-                                    cumulative,
-                                    "Start",
-                                ).set(cumulative)
-                    else:
-                        continue
+                                    iam_service_gauge.labels(
+                                        (
+                                            datetime.strptime(
+                                                new_time, "%Y-%m-%dT%H:%M:%SZ"
+                                            )
+                                        ).strftime("%Y-%m-%d %H:%M:%S"),
+                                        role,
+                                        "unknown region name",
+                                        # f"{role_region} ({region_names.get(role_region, 'unknown region name')})",
+                                        account_id,
+                                        ec2,
+                                        cumulative,
+                                        "Start",
+                                    ).set(cumulative)
+                        else:
+                            continue
+
+                    elif detail["Service"] == "lambda":
+                        print("I am here")
+                        # extract the "Function_Region" and "Function" fields
+                        function_region = detail["Function_Region"]
+                        function = detail["Function"]
+                        lambda_function = "lambda:function/" + function
+                        response = cost_of_instance(
+                            event, client, function, start_date, end_date
+                        )
+
+                        cumulative = 0.0
+                        for j in range(len(response["ResultsByTime"])):
+                            time_Data = response["ResultsByTime"][j]["TimePeriod"][
+                                "End"
+                            ]
+                            new_time = time_Data.replace("00:00:00", "12:02:02")
+                            cumulative = cumulative + float(
+                                response["ResultsByTime"][j]["Total"][
+                                    "UnblendedCost"
+                                ]["Amount"]
+                            )
+
+                            iam_service_gauge.labels(
+                                (
+                                    datetime.strptime(
+                                        new_time, "%Y-%m-%dT%H:%M:%SZ"
+                                    )
+                                ).strftime("%Y-%m-%d %H:%M:%S"),
+                                role,
+                                "unknown region name",
+                                # f"{role_region} ({region_names.get(role_region, 'unknown region name')})",
+                                account_id,
+                                lambda_function,
+                                cumulative,
+                                "None",
+                            ).set(cumulative)
+
+                        
 
                 elif isinstance(detail, str):
                     iam_service_gauge.labels(

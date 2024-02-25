@@ -74,7 +74,7 @@ def lambda_handler():
 
     list_of_iam_roles = []
     bucket = "bucket-test-simon1"
-    key = "iam-role/iam-roles-in-use/2024/02/21/05/resources.json.gz"
+    key = "iam-role/iam-roles-in-use/resources.json.gz"
     if "resources" in key:
         try:
             response = s3.get_object(Bucket=bucket, Key=key)
@@ -102,9 +102,6 @@ def lambda_handler():
 
     # functionName = os.environ["func_name_iam_role_service_mapping"]
     # try:
-    print("list iam")
-    print(list_of_iam_roles)
-    print("list iam done")
     import roles_service_mapping
     roles_service_mapping.lambda_handler(list_of_iam_roles)
         # iam_role_service_lambda_payload = lambda_client.invoke(
