@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import io
 import json
 import logging
 import os
@@ -19,7 +20,7 @@ from datetime import datetime, timedelta
 
 import boto3
 from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
-
+import pandas as pd
 
 try:
     client = boto3.client("ce")
@@ -37,6 +38,10 @@ try:
     ssm_client = boto3.client("ssm")
 except Exception as e:
     logging.error("Error creating boto3 client for ssm:" + str(e))
+try:
+    s3 = boto3.client("s3")
+except Exception as e:
+    logging.error("Error creating boto3 client: " + str(e))
 
 
 def cost_of_instance(event, client, resource_id, start_date, end_date):
@@ -89,6 +94,17 @@ def get_region_names():
 # Get the region names dictionary
 # region_names = get_region_names()
 
+def get_cumulative_cost(cur_data, resource_id):
+    df = pd.json_normalize(cur_data)
+    print("df")
+    print(df)
+    print(df.columns.tolist())
+    # print(df["lineItem/UnblendedCost"])
+    cost = df.loc[df["lineItem/ResourceId"] == resource_id].sum()["lineItem/UnblendedCost"]
+    print(cost)
+    print("df done")
+    return cost
+
 def lambda_handler(event):
     """
     The main Lambda function that is executed.
@@ -119,7 +135,8 @@ def lambda_handler(event):
         registry=registry,
     )
 
-    roles = event
+    roles = event["resource_mapping"]
+    cur_data = event["cur_data"]
     cost_by_days = 14
     end_date = str(datetime.now().date())
     start_date = str(datetime.now().date() - timedelta(days=cost_by_days))
@@ -241,36 +258,37 @@ def lambda_handler(event):
                         function_region = detail["Function_Region"]
                         function = detail["Function"]
                         lambda_function = "lambda:function/" + function
-                        response = cost_of_instance(
-                            event, client, function, start_date, end_date
-                        )
+                        lambda_cost = get_cumulative_cost(cur_data, function)
+                        # response = cost_of_instance(
+                        #     event, client, function, start_date, end_date
+                        # )
 
-                        cumulative = 0.0
-                        for j in range(len(response["ResultsByTime"])):
-                            time_Data = response["ResultsByTime"][j]["TimePeriod"][
-                                "End"
-                            ]
-                            new_time = time_Data.replace("00:00:00", "12:02:02")
-                            cumulative = cumulative + float(
-                                response["ResultsByTime"][j]["Total"][
-                                    "UnblendedCost"
-                                ]["Amount"]
-                            )
+                        # cumulative = 0.0
+                        # for j in range(len(response["ResultsByTime"])):
+                        #     time_Data = response["ResultsByTime"][j]["TimePeriod"][
+                        #         "End"
+                        #     ]
+                        #     new_time = time_Data.replace("00:00:00", "12:02:02")
+                        #     cumulative = cumulative + float(
+                        #         response["ResultsByTime"][j]["Total"][
+                        #             "UnblendedCost"
+                        #         ]["Amount"]
+                        #     )
 
-                            iam_service_gauge.labels(
-                                (
-                                    datetime.strptime(
-                                        new_time, "%Y-%m-%dT%H:%M:%SZ"
-                                    )
-                                ).strftime("%Y-%m-%d %H:%M:%S"),
-                                role,
-                                "unknown region name",
-                                # f"{role_region} ({region_names.get(role_region, 'unknown region name')})",
-                                account_id,
-                                lambda_function,
-                                cumulative,
-                                "None",
-                            ).set(cumulative)
+                        iam_service_gauge.labels(
+                            (
+                                datetime.strptime(
+                                    new_time, "%Y-%m-%dT%H:%M:%SZ"
+                                )
+                            ).strftime("%Y-%m-%d %H:%M:%S"),
+                            role,
+                            "unknown region name",
+                            # f"{role_region} ({region_names.get(role_region, 'unknown region name')})",
+                            account_id,
+                            lambda_function,
+                            lambda_cost,
+                            "None",
+                        ).set(cumulative)
 
                         
 

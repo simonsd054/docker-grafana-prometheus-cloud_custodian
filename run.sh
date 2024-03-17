@@ -1,7 +1,7 @@
 python -m venv .venv
 source .venv/bin/activate
 source env.sh
-pip install prometheus_client c7n
+pip install prometheus_client c7n pandas
 echo $ACCESS_KEY
 echo $SECRET_KEY
 echo $S3_BUCKET

@@ -46,7 +46,8 @@ def lambda_handler(event):
     """
 
     # function_name = os.environ["function_name_iamroleservice"]
-    resource_file_content = event
+    resource_file_content = event["list_of_iam_roles"]
+    cur_data = event["cur_data"]
     resource_mapping = []
 
     # parsing iam role detail
@@ -171,9 +172,9 @@ def lambda_handler(event):
                                     "Function": function_arn
                                 }
                                 service_mapping.append(function_detail)
-                                print("service_mapping")
-                                print(service_mapping)
-                                print("service_mapping done")
+                                # print("service_mapping")
+                                # print(service_mapping)
+                                # print("service_mapping done")
                     else:
                         # adding other services
                         service_mapping.append(resource)
@@ -193,9 +194,14 @@ def lambda_handler(event):
         print(resource_mapping)
         print("resource_mapping done")
 
+        payload_service = {
+            "resource_mapping": resource_mapping,
+            "cur_data": cur_data
+        }
+
         try:
             import roles_service
-            roles_service.lambda_handler(resource_mapping)
+            roles_service.lambda_handler(payload_service)
             # invoker = lambda_client.invoke(
             #     FunctionName=function_name,
             #     InvocationType="Event",
@@ -210,6 +216,7 @@ def lambda_handler(event):
             #     )
         except Exception as e:
             logging.error("Error in invoking lambda function: " + str(e))
+            raise e
             return {
                 "statusCode": 500,
                 "body": "Error invoking iamroleservice_lambda",
